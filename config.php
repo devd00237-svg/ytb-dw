@@ -7,7 +7,7 @@
 define('NODE_API_URL', 'https://web-production-460cb.up.railway.app');
 
 // Configuration de la base de données
-define('DB_HOST', 'sql208.infinityfree.com');
+define('DB_HOST', 'https://sql208.infinityfree.com');
 define('DB_NAME', 'if0_39781107_ytb_dw');
 define('DB_USER', 'if0_39781107');
 define('DB_PASS', 'DurandDev237');
