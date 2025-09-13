@@ -7,10 +7,10 @@
 define('NODE_API_URL', 'https://web-production-460cb.up.railway.app');
 
 // Configuration de la base de données
-define('DB_HOST', 'fdb1030.awardspace.net');
-define('DB_NAME', '4509814_ytb');
-define('DB_USER', '4509814_ytb');
-define('DB_PASS', 'DurandDev237!');
+define('DB_HOST', 'sql303.byethost7.com');
+define('DB_NAME', 'b7_39935245_ytb_dw');
+define('DB_USER', 'b7_39935245');
+define('DB_PASS', ';*Azerty16.com');
 
 // Configuration du site
 define('SITE_NAME', 'YTB-Downloader Pro');
