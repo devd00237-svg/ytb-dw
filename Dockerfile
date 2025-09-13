@@ -1,14 +1,17 @@
-# Utilise l'image officielle PHP avec Apache intégré
+# Image officielle PHP + Apache
 FROM php:8.2-apache
 
-# Copie tout le contenu de ton site dans le dossier web d'Apache
+# Installer les extensions PHP nécessaires (MySQL, PDO, etc.)
+RUN docker-php-ext-install mysqli pdo pdo_mysql
+
+# Copier les fichiers de ton site dans le dossier web
 COPY . /var/www/html
 
-# Donne les bons droits aux fichiers (optionnel mais recommandé)
+# Donner les bons droits à Apache
 RUN chown -R www-data:www-data /var/www/html
 
-# Expose le port 80 (obligatoire pour que Koyeb puisse y accéder)
+# Exposer le port HTTP
 EXPOSE 80
 
-# Démarre Apache automatiquement
+# Lancer Apache au démarrage
 CMD ["apache2-foreground"]
