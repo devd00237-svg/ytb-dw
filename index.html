@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Téléchargement YouTube</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background: #f8f9fa;
+      font-family: Arial, sans-serif;
+    }
+    .container {
+      max-width: 600px;
+      margin-top: 80px;
+      padding: 30px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .btn-download {
+      width: 100%;
+    }
+    #formats {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container text-center">
+    <h2 class="mb-4">Durand Dev YouTube Download</h2>
+  </div>
+
+  <script>
+    // Configuration de l'API
+    const CONFIG = {
+      BACKEND_URL: 'https://ytb-dw-qo6w.onrender.com',
+      SUPPORTED_FORMATS: ['audio', 'video'],
+      SUPPORTED_QUALITIES: ['144p', '240p', '360p', '480p', '720p', '1080p', 'best'],
+      TIMEOUT: 900000 // 15 minutes
+    };
+
+    // Fonction pour valider une URL YouTube
+    function isValidYouTubeURL(url) {
+      const patterns = [
+        /^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([a-zA-Z0-9_-]{11})/,
+        /^https?:\/\/(www\.)?youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})/
+      ];
+      return patterns.some(pattern => pattern.test(url));
+    }
+
+    // Fonction pour extraire l'ID YouTube
+    function extractYouTubeID(url) {
+      const patterns = [
+        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/)([a-zA-Z0-9_-]{11})/,
+        /youtube\.com\/watch\?.*v=([a-zA-Z0-9_-]{11})/
+      ];
+      
+      for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match) return match[1];
+      }
+      return null;
+    }
+
+    // Fonction pour générer un token CSRF simple
+    function generateCSRFToken() {
+      return Math.random().toString(36).substring(2) + Date.now().toString(36);
+    }
+
+    // Fonction pour retourner une réponse JSON
+    function sendJSONResponse(data, status = 200) {
+      if (status !== 200) {
+        console.error('API Error:', data);
+      }
+      
+      // Si c'est une requête qui attend du JSON en réponse
+      const urlParams = new URLSearchParams(window.location.search);
+      const expectsJson = urlParams.get('format') === 'json' || 
+                         document.referrer === '' || 
+                         window.location.search.includes('api');
+      
+      if (expectsJson) {
+        document.body.innerHTML = `<pre style="background: #f8f9fa; padding: 20px; border-radius: 5px; font-family: monospace;">${JSON.stringify(data, null, 2)}</pre>`;
+      }
+      
+      return data;
+    }
+
+    // Fonction pour gérer les téléchargements
+    async function handleDownload(params) {
+      const { url, format = 'video', quality = 'best', api_key = '', csrf_token = '' } = params;
+      
+      try {
+        // Validation des paramètres
+        if (!url) {
+          throw new Error('URL YouTube manquante');
+        }
+        
+        if (!isValidYouTubeURL(url)) {
+          throw new Error('URL YouTube invalide');
+        }
+        
+        if (!CONFIG.SUPPORTED_FORMATS.includes(format)) {
+          throw new Error(`Format invalide. Utilisez: ${CONFIG.SUPPORTED_FORMATS.join(', ')}`);
+        }
+        
+        if (!CONFIG.SUPPORTED_QUALITIES.includes(quality)) {
+          throw new Error(`Qualité invalide. Utilisez: ${CONFIG.SUPPORTED_QUALITIES.join(', ')}`);
+        }
+        
+        const videoId = extractYouTubeID(url);
+        if (!videoId) {
+          throw new Error('Impossible d\'extraire l\'ID de la vidéo');
+        }
+        
+        // Construire l'URL pour l'API backend
+        const backendUrl = new URL(`${CONFIG.BACKEND_URL}/download/${encodeURIComponent(videoId)}`);
+        backendUrl.searchParams.set('format', format);
+        backendUrl.searchParams.set('quality', quality);
+        
+        // Faire la requête vers l'API backend
+        const response = await fetch(backendUrl.toString(), {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'YTDownloader-SaaS/1.0',
+            'Accept': '*/*'
+          },
+          signal: AbortSignal.timeout(CONFIG.TIMEOUT)
+        });
+        
+        if (!response.ok) {
+          let errorMessage = 'Erreur du serveur de téléchargement';
+          
+          if (response.status === 404) {
+            errorMessage = 'Vidéo non trouvée ou indisponible';
+          } else if (response.status === 403) {
+            errorMessage = 'Vidéo privée ou restreinte';
+          } else if (response.status === 429) {
+            errorMessage = 'Quota quotidien dépassé';
+          }
+          
+          return sendJSONResponse({
+            error: errorMessage
+          }, response.status);
+        }
+        
+        // Récupérer les headers de réponse
+        const contentType = response.headers.get('content-type') || '';
+        const contentDisposition = response.headers.get('content-disposition') || '';
+        const contentLength = response.headers.get('content-length') || '';
+        
+        // Si c'est du JSON, c'est probablement une erreur
+        if (contentType.includes('application/json')) {
+          const errorData = await response.json();
+          return sendJSONResponse({
+            error: errorData.error || 'Erreur du serveur'
+          }, 500);
+        }
+        
+        // Créer un blob à partir de la réponse
+        const blob = await response.blob();
+        
+        // Extraire le nom de fichier du header Content-Disposition
+        let filename = `youtube_${format}_${videoId}.${format === 'audio' ? 'mp3' : 'mp4'}`;
+        
+        const matches = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (matches != null && matches[1]) {
+          filename = matches[1].replace(/['"]/g, '');
+        }
+        
+        // Créer un lien de téléchargement et l'activer
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(downloadUrl);
+        
+        // Log de l'activité
+        console.log(`[YTDownloader] Download completed: ${videoId} | Format: ${format} | Quality: ${quality}`);
+        
+        // Simuler l'enregistrement en base (comme dans le PHP)
+        const downloadRecord = {
+          video_id: videoId,
+          video_title: filename.replace(/\.[^/.]+$/, ""), // Enlever l'extension
+          format: format,
+          quality: quality === 'best' ? null : quality,
+          ip_address: 'client-ip', // Pas accessible côté client
+          user_agent: navigator.userAgent,
+          timestamp: new Date().toISOString()
+        };
+        
+        return {
+          success: true,
+          message: 'Téléchargement terminé',
+          filename: filename,
+          download_record: downloadRecord
+        };
+        
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          return sendJSONResponse({
+            error: 'Timeout: Le téléchargement a pris trop de temps'
+          }, 408);
+        }
+        
+        console.error('[YTDownloader] Download Error:', error.message);
+        return sendJSONResponse({
+          error: error.message
+        }, 500);
+      }
+    }
+
+    // Fonction pour récupérer les informations d'une vidéo
+    async function handleVideoInfo(url) {
+      try {
+        if (!url) {
+          throw new Error('URL YouTube manquante');
+        }
+        
+        if (!isValidYouTubeURL(url)) {
+          throw new Error('URL YouTube invalide');
+        }
+        
+        const videoId = extractYouTubeID(url);
+        if (!videoId) {
+          throw new Error('Impossible d\'extraire l\'ID de la vidéo');
+        }
+        
+        const infoUrl = `${CONFIG.BACKEND_URL}/info/${encodeURIComponent(videoId)}`;
+        
+        const response = await fetch(infoUrl, {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'YTDownloader-SaaS/1.0',
+            'Accept': 'application/json'
+          },
+          signal: AbortSignal.timeout(60000) // 60 secondes pour les infos
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Erreur du serveur (${response.status})`);
+        }
+        
+        const videoInfo = await response.json();
+        
+        if (!videoInfo || (videoInfo.success === false)) {
+          throw new Error(videoInfo.error || 'Erreur inconnue');
+        }
+        
+        // Formater les informations comme dans le PHP
+        const formattedInfo = {
+          success: true,
+          id: videoInfo.id || videoId,
+          title: videoInfo.title || 'Titre indisponible',
+          duration: videoInfo.duration || 'Inconnue',
+          thumbnail: videoInfo.thumbnail || '',
+          uploader: videoInfo.uploader || 'Inconnu',
+          view_count: videoInfo.view_count || null,
+          upload_date: videoInfo.upload_date || null,
+          formats: videoInfo.formats || [
+            {
+              type: 'Audio MP3',
+              quality: '192 kbps',
+              size: 'Calculé au téléchargement'
+            },
+            {
+              type: 'Vidéo MP4 480p',
+              quality: '480p - 30 fps',
+              size: 'Calculé au téléchargement'
+            },
+            {
+              type: 'Vidéo MP4 720p',
+              quality: '720p - 30 fps',
+              size: 'Calculé au téléchargement'
+            },
+            {
+              type: 'Vidéo MP4 1080p',
+              quality: '1080p - 30 fps',
+              size: 'Calculé au téléchargement'
+            }
+          ]
+        };
+        
+        // Log de l'activité
+        console.log(`[YTDownloader] Info request: ${videoId} | Title: ${formattedInfo.title.substring(0, 50)}`);
+        
+        return sendJSONResponse(formattedInfo, 200);
+        
+      } catch (error) {
+        if (error.name === 'AbortError') {
+          return sendJSONResponse({
+            success: false,
+            error: 'Timeout: La récupération a pris trop de temps'
+          }, 408);
+        }
+        
+        console.error('[YTDownloader] Info Error:', error.message);
+        return sendJSONResponse({
+          success: false,
+          error: error.message
+        }, 500);
+      }
+    }
+
+    // Fonction principale de traitement
+    async function processRequest() {
+      // Récupérer les paramètres de l'URL
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      // Si aucun paramètre, ne rien faire (page normale)
+      if (urlParams.toString() === '') {
+        return;
+      }
+      
+      const action = urlParams.get('action');
+      
+      if (action === 'info') {
+        // Traitement pour récupérer les informations (comme info.php)
+        const url = urlParams.get('url');
+        await handleVideoInfo(url);
+        
+      } else if (urlParams.has('url')) {
+        // Traitement pour téléchargement (comme download.php)
+        const params = {
+          url: urlParams.get('url'),
+          format: urlParams.get('format') || 'video',
+          quality: urlParams.get('quality') || 'best',
+          api_key: urlParams.get('api_key') || '',
+          csrf_token: urlParams.get('csrf_token') || ''
+        };
+        
+        await handleDownload(params);
+      }
+    }
+
+    // Démarrer le traitement quand la page est chargée
+    document.addEventListener('DOMContentLoaded', processRequest);
+    
+    // API exposée pour les requêtes AJAX externes
+    window.ytDownloaderAPI = {
+      download: handleDownload,
+      getInfo: handleVideoInfo,
+      config: CONFIG
+    };
+  </script>
+</body>
+</html>
