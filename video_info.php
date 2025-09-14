@@ -9,6 +9,7 @@ require_once 'config.php';
 // Headers JSON
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
+header("Access-Control-Allow-Origin: *");
 
 $url = $_GET['url'] ?? '';
 
