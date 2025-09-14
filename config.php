@@ -7,10 +7,10 @@
 define('NODE_API_URL', 'https://web-production-460cb.up.railway.app');
 
 // Configuration de la base de données
-define('DB_HOST', 'sql8.freesqldatabase.com');
-define('DB_NAME', 'sql8798554');
-define('DB_USER', 'sql8798554');
-define('DB_PASS', 'VpTdPD2C6D');
+define('DB_HOST', 'sql.freedb.tech');
+define('DB_NAME', 'freedb_ytb_dw');
+define('DB_USER', 'freedb_Durand');
+define('DB_PASS', '8*RQUcKc*78Aa7e');
 
 // Configuration du site
 define('SITE_NAME', 'YTB-Downloader Pro');
