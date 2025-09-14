@@ -10,6 +10,7 @@ require_once 'config.php';
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
 header('X-XSS-Protection: 1; mode=block');
+header("Access-Control-Allow-Origin: *");
 
 // Variables principales
 $url = $_GET['url'] ?? '';
@@ -265,4 +266,5 @@ try {
 
 // Le téléchargement a été traité avec succès
 // Les données ont été transmises directement au navigateur via cURL
+
 ?>
