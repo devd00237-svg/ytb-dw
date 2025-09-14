@@ -9,7 +9,7 @@
     body {
       background: #f8f9fa;
       font-family: Arial, sans-serif;
-    }
+    } 
     .container {
       max-width: 600px;
       margin-top: 80px;
